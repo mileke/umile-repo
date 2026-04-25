@@ -53,22 +53,35 @@ export default function AIChat() {
     }
   }, []);
 
+  const [sessionLang, setSessionLang] = useState<string>('');
+
   useEffect(() => {
-    if (userProfile) {
+    if (userProfile && userProfile.languagePreference !== sessionLang) {
       if (recognitionRef.current) {
-         // set language based on preference roughly if needed, otherwise default
          const langMap: any = { 'English': 'en-US', 'Sheng': 'sw-KE', 'Swahili': 'sw-KE' };
          recognitionRef.current.lang = langMap[userProfile.languagePreference] || 'en-US';
       }
 
       createChat(userProfile).then(session => setChatSession(session));
-      setMessages([{
-        id: 'welcome',
-        role: 'model',
-        text: `Hello! I am your Umile Tutor, Otieno. I will speak to you in **${userProfile.languagePreference}**. What topic would you like to explore today?`
-      }]);
+      setSessionLang(userProfile.languagePreference);
+      
+      setMessages(prev => {
+        if (prev.length === 0) {
+          return [{
+            id: 'welcome',
+            role: 'model',
+            text: `Hello! I am your Umile Tutor, Otieno. I will speak to you in **${userProfile.languagePreference}**. What topic would you like to explore today?`
+          }];
+        } else {
+          return [...prev, {
+            id: Date.now().toString(),
+            role: 'model',
+            text: `*(System): Language switched to ${userProfile.languagePreference}*`
+          }];
+        }
+      });
     }
-  }, [userProfile]);
+  }, [userProfile?.languagePreference]);
 
   useEffect(() => {
     if (scrollRef.current) {

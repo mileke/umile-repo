@@ -43,7 +43,7 @@ Return the response as a JSON object containing the course details.`;
 
     console.log("Calling ai.models.generateContent");
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash", // Use flash model for speed and availability
+      model: "gemini-1.5-flash", // Use flash model for speed and availability
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -98,7 +98,7 @@ If the language is Sheng, use Kenyan urban slang but keep facts correct.`
 }
 export async function generateSpeech(text: string): Promise<string | undefined> {
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash",
+    model: "gemini-1.5-flash",
     contents: [{ parts: [{ text }] }],
     config: {
       responseModalities: [Modality.AUDIO],
@@ -143,7 +143,7 @@ You can use emojis to make the learning fun! Provide simple analogies.
 You can use standard markdown syntax.`;
 
   return ai.chats.create({
-    model: 'gemini-3.1-flash',
+    model: 'gemini-1.5-flash',
     config: {
       systemInstruction,
     }

@@ -5,6 +5,7 @@ import { Home, Library, MessageCircle, LogOut } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { useTranslation } from '../lib/translations';
 import {
   Dialog,
   DialogContent,
@@ -17,11 +18,12 @@ import {
 export default function Layout() {
   const { userProfile, signOut } = useAuth();
   const location = useLocation();
+  const t = useTranslation();
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Courses', href: '/courses', icon: Library },
-    { name: 'AI Tutor', href: '/chat', icon: MessageCircle },
+    { name: t.dashboard, href: '/dashboard', icon: Home },
+    { name: t.courses, href: '/courses', icon: Library },
+    { name: t.aiTutor, href: '/chat', icon: MessageCircle },
   ];
 
   const handleLanguageChange = async (lang: 'English' | 'Sheng' | 'Swahili') => {
@@ -60,10 +62,10 @@ export default function Layout() {
 
         <div className="p-6">
           <div className="bg-gradient-to-br from-primary to-[#0044BB] p-4 rounded-2xl text-white">
-            <p className="text-xs opacity-80 uppercase tracking-widest font-bold">Learning Streak</p>
+            <p className="text-xs opacity-80 uppercase tracking-widest font-bold">{t.learningStreak}</p>
             <div className="flex items-end mt-2">
               <span className="text-3xl font-bold">{userProfile?.currentStreak || 0}</span>
-              <span className="ml-1 text-sm pb-1">Days 🔥</span>
+              <span className="ml-1 text-sm pb-1">{t.days}</span>
             </div>
           </div>
         </div>
