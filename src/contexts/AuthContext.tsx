@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signInWithPopup } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../lib/firebase';
 
 interface AuthContextType {
@@ -29,19 +29,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsubscribeSnapshot: (() => void) | undefined;
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-      if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-      }
-
       if (firebaseUser) {
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           const docSnap = await getDoc(userDocRef);
           
-          if (!docSnap.exists()) {
+          if (docSnap.exists()) {
+            setUserProfile(docSnap.data() as UserProfile);
+            // Updating streak or last login could go here or server side
+          } else {
             // Create user
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
@@ -53,13 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               createdAt: serverTimestamp(),
             };
             await setDoc(userDocRef, newProfile);
+            setUserProfile(newProfile as any); // Optimistic wait serverType resolves
           }
-          
-          unsubscribeSnapshot = onSnapshot(userDocRef, (snap) => {
-             if (snap.exists()) {
-               setUserProfile(snap.data() as UserProfile);
-             }
-          });
         } catch (error) {
           handleFirestoreError(error, OperationType.GET, 'users');
         }
@@ -69,12 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    return () => {
-      unsubscribe();
-      if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-      }
-    };
+    return () => unsubscribe();
   }, []);
 
   const signInWithGoogle = async () => {
