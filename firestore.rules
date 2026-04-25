@@ -1,0 +1,150 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) { 
+        return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'languagePreference', 'currentStreak', 'createdAt']) &&
+        data.uid is string &&
+        data.email is string &&
+        data.get('displayName', '') is string &&
+        data.languagePreference in ['English', 'Sheng', 'Swahili'] &&
+        data.currentStreak is number &&
+        data.get('lastLoginDate', '') is string &&
+        data.createdAt == request.time;
+    }
+
+    function isValidUserUpdate(data) {
+      return data.uid is string && data.uid == request.auth.uid &&
+             data.email is string &&
+             data.get('displayName', '') is string &&
+             data.languagePreference in ['English', 'Sheng', 'Swahili'] &&
+             data.currentStreak is number &&
+             data.get('lastLoginDate', '') is string &&
+             data.createdAt == existing().createdAt;
+    }
+
+    function isValidCourse(data) {
+      return data.title is string && data.title.size() > 0 &&
+             data.description is string &&
+             data.category is string &&
+             data.difficulty in ['Beginner', 'Intermediate', 'Advanced'] &&
+             data.isPublished is bool &&
+             data.createdAt == request.time &&
+             data.creatorId is string && data.creatorId == request.auth.uid;
+    }
+
+    function isValidModule(data) {
+      return data.title is string && data.content is string && data.order is number && data.courseId is string;
+    }
+
+    function isValidUserProgress(data) {
+      return data.keys().hasAll(['courseId', 'status', 'userId', 'lastAccessed', 'completedModules']) &&
+             data.courseId is string &&
+             data.status in ['Not Started', 'In Progress', 'Completed'] &&
+             data.completedModules is list && data.completedModules.size() <= 500 &&
+             data.userId is string &&
+             data.lastAccessed is string; // using iso string to avoid timestamp mixing if desired, or let's use timestamp
+    }
+    function isValidUserProgressUpdate(data) {
+      return data.courseId is string &&
+             data.status in ['Not Started', 'In Progress', 'Completed'] &&
+             data.completedModules is list && data.completedModules.size() <= 500 &&
+             data.userId is string &&
+             data.lastAccessed is string; 
+    }
+
+    function isValidChatThread(data) {
+      return data.keys().hasAll(['userId', 'title', 'createdAt', 'updatedAt']) &&
+             data.userId is string &&
+             data.title is string &&
+             data.createdAt == request.time &&
+             data.updatedAt == request.time;
+    }
+    function isValidChatThreadUpdate(data) {
+      return data.userId is string &&
+             data.title is string &&
+             data.createdAt == existing().createdAt &&
+             data.updatedAt == request.time;
+    }
+
+    function isValidChatMessage(data) {
+      return data.keys().hasAll(['role', 'content', 'createdAt']) &&
+             data.role in ['user', 'model', 'system'] &&
+             data.content is string &&
+             data.createdAt == request.time;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId) &&
+                       isValidUser(incoming()) && incoming().uid == request.auth.uid;
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidId(userId) &&
+                       isValidUserUpdate(incoming()) && incoming().uid == existing().uid &&
+                       (
+                         incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'languagePreference', 'currentStreak', 'lastLoginDate'])
+                       );
+    }
+
+    match /courses/{courseId} {
+      allow get: if isSignedIn() && isValidId(courseId) && (existing().isPublished == true || existing().creatorId == request.auth.uid);
+      allow list: if isSignedIn() && (resource.data.isPublished == true || resource.data.creatorId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(courseId) && isValidCourse(incoming());
+    }
+
+    match /courses/{courseId}/modules/{moduleId} {
+      allow get: if isSignedIn() && isValidId(courseId) && isValidId(moduleId) && 
+                   (get(/databases/$(database)/documents/courses/$(courseId)).data.isPublished == true || get(/databases/$(database)/documents/courses/$(courseId)).data.creatorId == request.auth.uid);
+      allow list: if isSignedIn() && (get(/databases/$(database)/documents/courses/$(courseId)).data.isPublished == true || get(/databases/$(database)/documents/courses/$(courseId)).data.creatorId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(courseId) && isValidId(moduleId) && isValidModule(incoming()) && incoming().courseId == courseId &&
+                   getAfter(/databases/$(database)/documents/courses/$(courseId)).data.creatorId == request.auth.uid;
+    }
+
+    match /users/{userId}/progress/{progressId} {
+      allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(progressId);
+      allow list: if isSignedIn() && request.auth.uid == userId && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(progressId) &&
+                       isValidUserProgress(incoming()) && incoming().userId == request.auth.uid &&
+                       exists(/databases/$(database)/documents/courses/$(incoming().courseId));
+      
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(progressId) &&
+                       isValidUserProgressUpdate(incoming()) && incoming().userId == existing().userId && incoming().courseId == existing().courseId &&
+                       (
+                         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'completedModules', 'lastAccessed'])
+                       );
+    }
+
+    match /users/{userId}/threads/{threadId} {
+      allow get, delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(threadId);
+      allow list: if isSignedIn() && request.auth.uid == userId && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(threadId) &&
+                       isValidChatThread(incoming()) && incoming().userId == request.auth.uid;
+      
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(threadId) &&
+                       isValidChatThreadUpdate(incoming()) && incoming().userId == existing().userId &&
+                       (
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'updatedAt'])
+                       );
+    }
+
+    match /users/{userId}/threads/{threadId}/messages/{messageId} {
+      allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(threadId) && isValidId(messageId);
+      allow list: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(threadId) && isValidId(messageId) &&
+                       isValidChatMessage(incoming()) && 
+                       exists(/databases/$(database)/documents/users/$(userId)/threads/$(threadId));
+    }
+  }
+}

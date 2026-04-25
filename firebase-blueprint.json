@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with their learning preferences and gamification stats.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "languagePreference": { "type": "string", "enum": ["English", "Sheng", "Swahili"] },
+        "currentStreak": { "type": "integer" },
+        "lastLoginDate": { "type": "string", "format": "date" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["uid", "email", "languagePreference", "currentStreak", "createdAt"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "A scientific course.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "difficulty": { "type": "string", "enum": ["Beginner", "Intermediate", "Advanced"] },
+        "isPublished": { "type": "boolean" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["title", "description", "category", "difficulty", "isPublished", "createdAt"]
+    },
+    "Module": {
+      "title": "Module",
+      "description": "A module inside a course.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "order": { "type": "integer" }
+      },
+      "required": ["title", "content", "order"]
+    },
+    "UserProgress": {
+      "title": "UserProgress",
+      "description": "Tracks progress for an individual course by a specific user.",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "status": { "type": "string", "enum": ["Not Started", "In Progress", "Completed"] },
+        "completedModules": { "type": "array", "items": { "type": "string" } },
+        "lastAccessed": { "type": "integer" },
+        "userId": { "type": "string" }
+      },
+      "required": ["courseId", "status", "userId", "lastAccessed"]
+    },
+    "ChatThread": {
+      "title": "ChatThread",
+      "description": "A conversation with Vertex AI to explain concepts and get recommendations.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "createdAt": { "type": "integer" },
+        "updatedAt": { "type": "integer" }
+      },
+      "required": ["userId", "title", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "A message within a ChatThread.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "model", "system"] },
+        "content": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["role", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Store user profiles."
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/Course" },
+      "description": "Store all available courses. Read-only for users."
+    },
+    "/courses/{courseId}/modules/{moduleId}": {
+      "schema": { "$ref": "#/entities/Module" },
+      "description": "Course modules."
+    },
+    "/users/{userId}/progress/{progressId}": {
+      "schema": { "$ref": "#/entities/UserProgress" },
+      "description": "User specific course progress."
+    },
+    "/users/{userId}/threads/{threadId}": {
+      "schema": { "$ref": "#/entities/ChatThread" },
+      "description": "User AI threads."
+    },
+    "/users/{userId}/threads/{threadId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Messages inside a thread."
+    }
+  }
+}
