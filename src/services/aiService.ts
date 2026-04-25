@@ -43,7 +43,7 @@ Return the response as a JSON object containing the course details.`;
 
     console.log("Calling ai.models.generateContent");
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", // Use flash model for speed and availability
+      model: "gemini-3.1-flash", // Use flash model for speed and availability
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -59,12 +59,12 @@ If the language is Sheng, use Kenyan urban slang but keep facts correct.`
     const rawText = response.text || "";
     const cleanedText = rawText.replace(/```json\n?|```/g, "").trim();
     const parsed = JSON.parse(cleanedText || "{}");
-    
+
     const db = getFirestore();
     const courseId = doc(collection(db, 'courses')).id;
-    
+
     const batch = writeBatch(db);
-    
+
     // Set the course
     batch.set(doc(db, 'courses', courseId), {
       title: parsed.title || "Untitled Course",
@@ -75,7 +75,7 @@ If the language is Sheng, use Kenyan urban slang but keep facts correct.`
       creatorId: userId,
       createdAt: serverTimestamp()
     });
-    
+
     // Set the modules
     if (Array.isArray(parsed.modules)) {
       parsed.modules.forEach((mod: any, index: number) => {
@@ -88,7 +88,7 @@ If the language is Sheng, use Kenyan urban slang but keep facts correct.`
         });
       });
     }
-    
+
     await batch.commit();
     return courseId;
   } catch (error) {
@@ -98,14 +98,14 @@ If the language is Sheng, use Kenyan urban slang but keep facts correct.`
 }
 export async function generateSpeech(text: string): Promise<string | undefined> {
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-tts-preview",
+    model: "gemini-3.1-flash",
     contents: [{ parts: [{ text }] }],
     config: {
       responseModalities: [Modality.AUDIO],
       speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Puck' },
-          },
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: 'Puck' },
+        },
       },
     },
   });
@@ -119,7 +119,7 @@ export async function playSpeech(base64Data: string) {
     bytes[i] = binaryString.charCodeAt(i);
   }
   const buffer = new Int16Array(bytes.buffer);
-  
+
   const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
   const sampleRate = 24000;
   const audioBuffer = ctx.createBuffer(1, buffer.length, sampleRate);
@@ -143,7 +143,7 @@ You can use emojis to make the learning fun! Provide simple analogies.
 You can use standard markdown syntax.`;
 
   return ai.chats.create({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-3.1-flash',
     config: {
       systemInstruction,
     }
